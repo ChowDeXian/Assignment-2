@@ -1,18 +1,16 @@
 # Import libraries
-import pygame                       # For rendering graphics and handling input
-import math                         # For mathematical functions (especially hexagon geometry)
-import heapq                       
-from itertools import permutations  #imports and constants remain unchanged
+import pygame
+import math
+import heapq
 
 # ------------------------ Map Definitions ------------------------ #
-START    = 'S'                      # Start tile symbol
-TREASURE = 'T'                      # Treasure tile symbol
-BLOCKED  = '#'                      # Blocked tile symbol (impassable)
-TRAPS    = ['X1', 'X2', 'X3', 'X4'] # Trap tiles
-REWARDS  = ['R1', 'R2']             # Reward tiles
-EMPTY    = ''                       # Empty tile
+START    = 'S'
+TREASURE = 'T'
+BLOCKED  = '#'
+TRAPS    = ['X1', 'X2', 'X3', 'X4']
+REWARDS  = ['R1', 'R2']
+EMPTY    = ''
 
-# Hexagonal grid definition
 grid = [
     ['', '', '', '', '', '', '', '', '', ''],
     ['S', 'X2', '', 'X4', 'R1', '', '', '', '', ''],
@@ -23,15 +21,13 @@ grid = [
     ['', '', '', '', '', '', '', '', '', '']
 ]
 
-ROWS, COLS = len(grid), len(grid[0])  # Grid dimensions
+ROWS, COLS = len(grid), len(grid[0])
 
-# ------------------------ Pygame Setup ------------------------ #
-TILE_SIZE = 40                         # Width of hex tile
-HEX_H = TILE_SIZE * math.sqrt(3) / 2  # Height of hex tile (from geometry)
-WIDTH = int(COLS * TILE_SIZE * 0.75 + TILE_SIZE / 4) # Window width
-HEIGHT = int(ROWS * HEX_H + HEX_H / 2 + 60 + 50)     # Window height
+TILE_SIZE = 40
+HEX_H = TILE_SIZE * math.sqrt(3) / 2
+WIDTH = int(COLS * TILE_SIZE * 0.75 + TILE_SIZE / 4)
+HEIGHT = int(ROWS * HEX_H + HEX_H / 2 + 60 + 50)
 
-# Color definitions for each tile type
 COLORS = {
     START: (0, 100, 255),
     TREASURE: (255, 255, 0),
@@ -46,7 +42,6 @@ COLORS = {
     'PATH': (255, 165, 0)
 }
 
-# Descriptions shown on hover/tooltips
 TileInfo = {
     'X1': "Trap 1: Increases gravity — step costs double energy.",
     'X2': "Trap 2: Decreases speed — moves cost double steps.",
@@ -60,15 +55,11 @@ TileInfo = {
     'S':  "Start Position"
 }
 
-# ------------------------ Hex Coordinate Utilities ------------------------ #
-
-# Converts grid coordinates to pixel position
 def hex_to_pixel(r, c):
     x = TILE_SIZE * 0.75 * c + TILE_SIZE / 2
     y = HEX_H * r + (HEX_H / 2 if c % 2 == 1 else 0) + HEX_H / 2
     return x, y
 
-# Converts pixel position to grid coordinates (for mouse click detection)
 def pixel_to_hex(x, y):
     for r in range(ROWS):
         for c in range(COLS):
@@ -78,7 +69,6 @@ def pixel_to_hex(x, y):
                 return r, c
     return None, None
 
-# Returns pixel coordinates of the 6 corners of a hexagon
 def hex_corners(x, y):
     return [
         (x + TILE_SIZE / 2 * math.cos(math.radians(angle)),
@@ -86,7 +76,6 @@ def hex_corners(x, y):
         for angle in range(0, 360, 60)
     ]
 
-# Finds the starting tile's coordinates
 def find_start():
     for r in range(ROWS):
         for c in range(COLS):
@@ -94,20 +83,17 @@ def find_start():
                 return r, c
     return 0, 0
 
-# ------------------------ Drawing Functions ------------------------ #
+pygame.init()
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Hex Grid Treasure Hunt")
+font = pygame.font.SysFont('Arial', 18)
 
-pygame.init()                             # Initialize pygame
-screen = pygame.display.set_mode((WIDTH, HEIGHT)) # Create display
-pygame.display.set_caption("Hex Grid Treasure Hunt") # Window title
-font = pygame.font.SysFont('Arial', 18)   # Font for text
+health = 10
+collected_treasures = set()
+all_treasures = {(r, c) for r in range(ROWS) for c in range(COLS) if grid[r][c] == TREASURE}
 
-health = 10                               # Initial health
-collected_treasures = set()              # Tracks collected treasures
-all_treasures = {(r, c) for r in range(ROWS) for c in range(COLS) if grid[r][c] == TREASURE} # All treasures in the grid
-
-# Draws the entire grid and player
 def draw_grid(player_pos, path=[]):
-    screen.fill((100, 100, 100))  # Clear background
+    screen.fill((100, 100, 100))
     for r in range(ROWS):
         for c in range(COLS):
             x, y = hex_to_pixel(r, c)
@@ -116,16 +102,15 @@ def draw_grid(player_pos, path=[]):
             color = COLORS.get(tile, COLORS[EMPTY])
             if (r, c) in path:
                 color = COLORS['PATH']
-            pygame.draw.polygon(screen, color, corners)           # Fill hex
-            pygame.draw.polygon(screen, (0, 0, 0), corners, 1)    # Hex border
-            text = font.render(tile, True, (0, 0, 0))             # Tile label
-            screen.blit(text, text.get_rect(center=(x, y)))       # Draw text
-            if (r, c) == player_pos:                              # Draw player
+            pygame.draw.polygon(screen, color, corners)
+            pygame.draw.polygon(screen, (0, 0, 0), corners, 1)
+            text = font.render(tile, True, (0, 0, 0))
+            screen.blit(text, text.get_rect(center=(x, y)))
+            if (r, c) == player_pos:
                 pygame.draw.circle(screen, (0, 0, 0), (int(x), int(y)), 10)
     draw_legend()
     draw_status()
 
-# Draws legend box at bottom of screen
 def draw_legend():
     y = HEIGHT - 45
     x = 30
@@ -144,22 +129,17 @@ def draw_legend():
         screen.blit(text, (x + 25, y))
         x += 150
 
-# Shows player's health and treasure count
 def draw_status():
     status = f"Health: {health} | Treasures: {len(collected_treasures)}/{len(all_treasures)}"
     text = font.render(status, True, (255, 255, 255))
     screen.blit(text, (10, HEIGHT - 90))
 
-# Displays tile description as a tooltip
 def display_description(desc):
     pygame.draw.rect(screen, (30, 30, 30), (0, HEIGHT - 120, WIDTH, 25))
     text = font.render(desc, True, (255, 255, 255))
     rect = text.get_rect(center=(WIDTH // 2, HEIGHT - 110))
     screen.blit(text, rect)
 
-# ------------------------ Game Logic ------------------------ #
-
-# Gets all valid neighbors of a tile in hex grid
 def get_neighbors(r, c):
     even = (c % 2 == 0)
     dirs = [(-1, 0), (1, 0), (0, -1), (0, 1)]
@@ -170,15 +150,12 @@ def get_neighbors(r, c):
         if 0 <= nr < ROWS and 0 <= nc < COLS and grid[nr][nc] != BLOCKED:
             neighbors.append((nr, nc))
     return neighbors
-'''
-# Heuristic for A* (Euclidean distance)
+
 def heuristic(a, b):
     ax, ay = hex_to_pixel(*a)
     bx, by = hex_to_pixel(*b)
     return math.hypot(ax - bx, ay - by)
-'''
-'''
-# A* pathfinding implementation
+
 def a_star(start, goal):
     open_set = [(0, start)]
     came_from = {}
@@ -196,10 +173,15 @@ def a_star(start, goal):
             return path
 
         for neighbor in get_neighbors(*current):
-            cost = 1
             tile = grid[neighbor[0]][neighbor[1]]
+            cost = 1
             if tile == 'X1': cost *= 2
-            if tile == 'R1': cost *= 0.5
+            elif tile == 'X2': cost *= 2
+            elif tile == 'X3': cost += 5
+            elif tile == 'X4': cost += 10
+            elif tile == 'R1': cost *= 0.5
+            elif tile == 'R2': cost *= 0.5
+
             tentative_g = g_score[current] + cost
             if neighbor not in g_score or tentative_g < g_score[neighbor]:
                 came_from[neighbor] = current
@@ -208,47 +190,40 @@ def a_star(start, goal):
                 heapq.heappush(open_set, (f_score, neighbor))
 
     return []
-'''
 
-# ------------------------ Main Game Loop ------------------------ #
 def main():
     global health
     clock = pygame.time.Clock()
-    player_r, player_c = find_start()  # Start position
+    player_r, player_c = find_start()
     path = []
     running = True
 
     while running:
-        clock.tick(10)  # Limit FPS
+        clock.tick(10)
         draw_grid((player_r, player_c), path)
         tile = grid[player_r][player_c]
         display_description(TileInfo.get(tile, "Nothing interesting here"))
         pygame.display.flip()
 
-        # Collect treasure if standing on it
         if (player_r, player_c) in all_treasures:
             collected_treasures.add((player_r, player_c))
 
-        # Trap and reward effects
         if tile in TRAPS:
             health -= 1
         elif tile in REWARDS:
             health = min(health + 1, 10)
 
-        # Trap X4: remove uncollected treasures
         if tile == 'X4':
             for r, c in list(all_treasures):
                 if (r, c) not in collected_treasures:
                     grid[r][c] = ''
                     all_treasures.remove((r, c))
 
-        # Game over conditions
         if health <= 0 or collected_treasures == all_treasures:
             print("Game Over" if health <= 0 else "All Treasures Found!")
             pygame.time.wait(2000)
             running = False
-        '''
-        # Handle mouse clicks and key presses
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -260,24 +235,7 @@ def main():
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE and path:
                     player_r, player_c = path.pop(0)
-        '''
-        # Handle mouse clicks and key presses
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                mx, my = pygame.mouse.get_pos()
-                r, c = pixel_to_hex(mx, my)
-                if r is not None:
-                    #Compute best path covering all treasures
-                    remaining_treasures = [t for t in all_treasures if t not in collected_treasures]
-                    if remaining_treasures:
-                        path = find_best_treasure_path((player_r, player_c), remaining_treasures)
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE and path:
-                    player_r, player_c = path.pop(0)
-                    
-        # Arrow key movement
+
         keys = pygame.key.get_pressed()
         directions = {
             pygame.K_UP:    (-1, 0),
@@ -292,8 +250,7 @@ def main():
                     player_r, player_c = nr, nc
                 break
 
-    pygame.quit()  # Close the game
+    pygame.quit()
 
-# Entry point
 if __name__ == "__main__":
     main()
